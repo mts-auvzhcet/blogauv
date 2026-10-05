@@ -1,0 +1,31 @@
+{
+  "name": "auvblog-mern",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "workspaces": ["client"],
+  "scripts": {
+    "dev": "concurrently -k -n API,WEB -c green,cyan \"npm:server:dev\" \"npm:client:dev\"",
+    "server:dev": "node --watch server/index.js",
+    "client:dev": "npm --workspace client run dev",
+    "build": "npm --workspace client run build",
+    "start": "node server/index.js",
+    "create-admin": "node server/scripts/create-admin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "connect-pg-simple": "^10.0.0",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "pdf-parse": "1.1.1",
+    "pg": "^8.16.3",
+    "slugify": "^1.6.6"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
