@@ -24,7 +24,11 @@ async function api(path, options = {}) {
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   const response = await fetch(path, { credentials: 'same-origin', ...options, headers });
   if (response.status === 204) return null;
-  const result = await response.json().catch(() => ({}));
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`The server returned a webpage instead of API data for ${path}. Check that the Vercel project was deployed from the repository root.`);
+  }
+  const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'The request could not be completed.');
   return result;
 }
@@ -168,6 +172,7 @@ function progressFor(stage) {
 function Home() {
   const [posts, setPosts] = useState([]);
   const [status, setStatus] = useState('loading');
+  const [apiError, setApiError] = useState('');
   const [packetPhase, setPacketPhase] = useState(0);
   const [seasonPhase, setSeasonPhase] = useState(0);
   const packetPhaseRef = React.useRef(0);
@@ -175,9 +180,10 @@ function Home() {
   useEffect(() => {
     const beganAt = performance.now();
     api('/api/posts').then((data) => {
+      if (!Array.isArray(data)) throw new Error('The articles API returned an unexpected response.');
       const delay = Math.max(0, 480 - (performance.now() - beganAt));
       window.setTimeout(() => { setPosts(data); setStatus('ready'); }, delay);
-    }).catch(() => setStatus('error'));
+    }).catch((error) => { setApiError(error.message); setStatus('error'); });
   }, []);
   useEffect(() => {
     let frame = 0;
@@ -266,7 +272,7 @@ function Home() {
 
     <section className="pin-stage season-stage" data-stage="season"><div className="pin-inner season-pin"><PlateCanvas variant="contour" className="season-contours" animate /><div className="season-top"><p className="eyebrow" data-rev>THREE WAYS TO LOOK CLOSER / 04</p><span data-rev>AN OPEN FIELD OF IDEAS</span></div><div className="season-content"><h2><WordLine>Follow your curiosity.</WordLine></h2><div className="season-chapters">{CATEGORIES.map((category, index) => <a className={`season-chapter ${seasonPhase === index ? 'chapter-active' : ''}`} data-rev href={`#${categorySlug(category)}`} key={category} aria-current={seasonPhase === index ? 'step' : undefined}><span className="chapter-number" data-rev>0{index + 1} / FIELD</span><h3 data-rev>{category}</h3><p data-rev>{CATEGORY_COPY[category]}</p><span className="chapter-arrow" data-rev>EXPLORE FIELD&nbsp; ↗</span></a>)}</div></div><div className="season-bottom"><span>COMPUTER SCIENCE / ELECTRONICS / MECHANICAL</span><span>SCROLL FOR THE LATEST NOTES&nbsp; ↓</span></div><div className="season-index">04 <i>/ 05</i></div></div></section>
 
-    <section className="archive-band section-wrap" id="latest"><div className="section-heading" data-rev><div><p className="eyebrow">FRESH FROM THE WORKBENCH / 05</p><h2><WordLine>Latest thinking.</WordLine></h2></div><a className="text-link" href="#fields">Browse the fields <span>↗</span></a></div>{status === 'error' && <p className="empty-category">Articles could not be loaded right now. Please refresh in a moment.</p>}{CATEGORIES.map((category, index) => { const group = posts.filter((post) => post.category === category); return <div className="category-articles" id={categorySlug(category)} key={category}><div className="category-label" data-rev><span>{category}</span><span>0{index + 1}</span></div>{group.length ? <div className="article-list">{group.map((post, postIndex) => <ArticleRow post={post} index={postIndex + 1} key={post.id} />)}</div> : <p className="empty-category" data-rev>New writing for this section is on its way.</p>}</div>; })}</section>
+    <section className="archive-band section-wrap" id="latest"><div className="section-heading" data-rev><div><p className="eyebrow">FRESH FROM THE WORKBENCH / 05</p><h2><WordLine>Latest thinking.</WordLine></h2></div><a className="text-link" href="#fields">Browse the fields <span>↗</span></a></div>{status === 'error' && <p className="empty-category">Articles could not be loaded: {apiError}</p>}{CATEGORIES.map((category, index) => { const group = posts.filter((post) => post.category === category); return <div className="category-articles" id={categorySlug(category)} key={category}><div className="category-label" data-rev><span>{category}</span><span>0{index + 1}</span></div>{group.length ? <div className="article-list">{group.map((post, postIndex) => <ArticleRow post={post} index={postIndex + 1} key={post.id} />)}</div> : <p className="empty-category" data-rev>New writing for this section is on its way.</p>}</div>; })}</section>
 
     <section className="faq-band section-wrap"><div className="faq-heading" data-rev><p className="eyebrow">A FEW GOOD QUESTIONS</p><h2><WordLine>Before you dive in.</WordLine></h2></div><div className="faq-list"><details data-rev><summary data-rev>What is the AUV-ZHCET blog?</summary><p>The club journal of MTS AUV-ZHCET, sharing ideas and field notes from autonomous underwater vehicle work across computer science, electronics, and mechanical engineering.</p></details><details data-rev><summary data-rev>How are articles made?</summary><p>Each article starts with source material, then gets reviewed and shaped into a clear field note before it is published.</p></details><details data-rev><summary data-rev>Can I explore just one discipline?</summary><p>Yes. Choose Computer Science, Electronics, or Mechanical and follow that field through the archive.</p></details></div></section>
 
