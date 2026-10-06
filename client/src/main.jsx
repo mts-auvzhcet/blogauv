@@ -58,7 +58,7 @@ function Brand() {
 }
 
 function PublicHeader() {
-  return <header className="topbar"><Brand /><nav className="nav-links" aria-label="Main navigation"><Link data-rev to="/#fields">Fields</Link><Link data-rev to="/#latest">Reading room</Link></nav><Link className="nav-cta" data-rev to="/about">About the club <span>↗</span></Link></header>;
+  return <header className="topbar"><Brand /><nav className="nav-links" aria-label="Main navigation"><a data-rev href="/#fields">Fields</a><a data-rev href="/#latest">Reading room</a></nav><Link className="nav-cta" data-rev to="/about">About the club <span>↗</span></Link></header>;
 }
 
 function Footer() {
@@ -264,7 +264,7 @@ function Home() {
   const packetDate = new Date().toLocaleDateString('en', { year: 'numeric', month: 'short', day: '2-digit' }).toUpperCase();
 
   return <><PublicHeader /><main className="choreo-home">
-    <section className="pin-stage hero-stage" data-stage="hero"><div className="pin-inner hero-pin"><PlateCanvas variant="soil" className="hero-soil" animate /><div className="poster-top"><Brand /><span data-rev>MTS AUV-ZHCET&nbsp; / &nbsp;ZHCET · AMU</span></div><div className="poster-lockup"><WordLine as="p" className="poster-kicker">Ideas for the curious engineer.</WordLine><WordLine as="h1" className="poster-title">AUV BLOG</WordLine><p className="poster-lede" data-rev>The systems we build shape the world we live in. Explore the thinking behind them — one good read at a time.</p></div><div className="poster-meta"><span data-rev>COMPUTER SCIENCE</span><span data-rev>ELECTRONICS</span><span data-rev>MECHANICAL</span><span className="poster-scroll" data-rev>SCROLL TO EXPLORE&nbsp; ↓</span></div><div className="poster-counter">01 <i>/ 05</i></div></div></section>
+    <section className="pin-stage hero-stage" data-stage="hero"><div className="pin-inner hero-pin"><PlateCanvas variant="soil" className="hero-soil" animate /><div className="poster-lockup"><WordLine as="p" className="poster-kicker">Ideas for the curious engineer.</WordLine><WordLine as="h1" className="poster-title">AUV BLOG</WordLine><p className="poster-lede" data-rev>The systems we build shape the world we live in. Explore the thinking behind them — one good read at a time.</p></div><div className="poster-meta"><span data-rev>COMPUTER SCIENCE</span><span data-rev>ELECTRONICS</span><span data-rev>MECHANICAL</span><span className="poster-scroll" data-rev>SCROLL TO EXPLORE&nbsp; ↓</span></div><div className="poster-counter">01 <i>/ 05</i></div></div></section>
 
     <section className="pin-stage manifesto-stage" data-stage="manifesto"><div className="pin-inner manifesto-pin"><p className="eyebrow" data-rev>OUR POINT OF VIEW / 01</p><div className="manifesto-frame"><p className="manifesto-base" aria-hidden="true"><WordLine>The systems we build shape the world we live in.</WordLine></p><p className="manifesto-fill" aria-hidden="true"><WordLine>The systems we build shape the world we live in.</WordLine></p></div><p className="manifesto-foot" data-rev><span>SCIENCE, SYSTEMS &amp; THE SPACE BETWEEN</span><span>SCROLL TO REVEAL&nbsp; ↓</span></p></div></section>
 
