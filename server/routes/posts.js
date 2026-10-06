@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const slugify = require('slugify');
 const { pool } = require('../db');
 const { requireAdmin, requireCsrf } = require('../middleware/admin');
@@ -38,22 +38,58 @@ function imageContentType(buffer) {
   return null;
 }
 
-function pdfTextToMarkdown(text) {
-  const normalized = text
+function cleanPdfText(text) {
+  return String(text || '')
     .normalize('NFKC')
     .replace(/(?<=\w)-\s*\n\s*(?=\w)/g, '')
     .replace(/\r/g, '')
-    .replace(/[ \t]+\n/g, '\n');
-  const blocks = normalized.split(/\n\s*\n/).map((raw) => raw
-    .split('\n').map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' '))
-    .filter(Boolean)
-    .map((block) => {
-      if (block.length < 100 && (block === block.toLocaleUpperCase() || /^(chapter|section|part)\s+\d+\b/i.test(block))) {
-        return `## ${block.toLocaleLowerCase().replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase())}`;
+    .split('\n')
+    .map((line) => line.replace(/[\t\u00a0 ]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function pdfTableToMarkdown(table) {
+  const rows = (Array.isArray(table) ? table : []).map((row) =>
+    (Array.isArray(row) ? row : []).map((cell) => String(cell ?? '').replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim()),
+  ).filter((row) => row.some(Boolean));
+  if (!rows.length) return '';
+  const width = Math.max(...rows.map((row) => row.length));
+  const line = (row) => `| ${Array.from({ length: width }, (_, index) => row[index] || '').join(' | ')} |`;
+  return [line(rows[0]), line(Array(width).fill('---')), ...rows.slice(1).map(line)].join('\n');
+}
+
+async function parsePdf(buffer) {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const [textResult, imageResult, tableResult] = await Promise.all([
+      parser.getText({ lineEnforce: true }),
+      parser.getImage({ imageThreshold: 80, imageBuffer: true, imageDataUrl: false }),
+      parser.getTable(),
+    ]);
+    const images = [];
+    const pageCount = Math.max(textResult.pages?.length || 0, imageResult.pages?.length || 0, tableResult.pages?.length || 0);
+    const pageSections = [];
+    for (let index = 0; index < pageCount; index += 1) {
+      const pageText = cleanPdfText(textResult.pages?.[index]?.text || '');
+      const pageTables = (tableResult.pages?.[index]?.tables || []).map(pdfTableToMarkdown).filter(Boolean);
+      const pageImages = imageResult.pages?.[index]?.images || [];
+      const figureLines = [];
+      for (const image of pageImages) {
+        const data = Buffer.isBuffer(image.data) ? image.data : image.data ? Buffer.from(image.data) : null;
+        const contentType = data && imageContentType(data);
+        if (!data || !contentType || data.length > 3 * 1024 * 1024 || images.length >= 24) continue;
+        const imageIndex = images.push({ data, contentType, page: index + 1 }) - 1;
+        figureLines.push(`![Figure from page ${index + 1}](PDF_IMAGE_${imageIndex})`);
       }
-      return block;
-    });
-  return blocks.join('\n\n').trim();
+      const blocks = [pageText, ...pageTables, ...figureLines].filter(Boolean);
+      if (blocks.length) pageSections.push(blocks.join('\n\n'));
+    }
+    return { markdown: pageSections.join('\n\n---\n\n').trim(), images };
+  } finally {
+    await parser.destroy();
+  }
 }
 
 function makeExcerpt(markdown) {
@@ -145,26 +181,49 @@ router.post('/admin/upload', requireAdmin, requireCsrf, upload.single('pdf'), as
     if (!req.file.buffer.subarray(0, 5).equals(Buffer.from('%PDF-'))) {
       return res.status(400).json({ error: 'That file does not look like a valid PDF.' });
     }
-    let parsed;
+    let converted;
     try {
-      parsed = await pdfParse(req.file.buffer);
+      converted = await parsePdf(req.file.buffer);
     } catch {
       return res.status(400).json({ error: 'The PDF could not be read. Please try another file.' });
     }
-    const markdown = pdfTextToMarkdown(parsed.text || '');
+    let markdown = converted.markdown;
     if (markdown.length < 40) {
-      return res.status(400).json({ error: 'No readable text found. Scanned PDFs need OCR before upload.' });
+      return res.status(400).json({ error: 'No readable text found. This local converter cannot OCR scanned-only PDFs; run OCR on the PDF first.' });
     }
     const base = slugify(title, { lower: true, strict: true }).slice(0, 100) || 'article';
     let slug = base;
     let suffix = 2;
     while (true) {
       try {
-        const { rows } = await pool.query(
-          'INSERT INTO posts (slug, title, category, author, excerpt, markdown, published) VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING *',
-          [slug, title, category, author, makeExcerpt(markdown), markdown],
-        );
-        return res.status(201).json(publicPost(rows[0]));
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          const inserted = await client.query(
+            'INSERT INTO posts (slug, title, category, author, excerpt, markdown, published) VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING *',
+            [slug, title, category, author, makeExcerpt(markdown), markdown],
+          );
+          const post = inserted.rows[0];
+          for (let index = 0; index < converted.images.length; index += 1) {
+            const image = converted.images[index];
+            const saved = await client.query(
+              'INSERT INTO post_images (post_id, content_type, image_data) VALUES ($1, $2, $3) RETURNING id',
+              [post.id, image.contentType, image.data],
+            );
+            markdown = markdown.replaceAll(`PDF_IMAGE_${index}`, `/api/media/${saved.rows[0].id}`);
+          }
+          const updated = await client.query(
+            'UPDATE posts SET markdown = $1, excerpt = $2 WHERE id = $3 RETURNING *',
+            [markdown, makeExcerpt(markdown), post.id],
+          );
+          await client.query('COMMIT');
+          return res.status(201).json(publicPost(updated.rows[0]));
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
       } catch (error) {
         if (error.code !== '23505') throw error;
         slug = `${base}-${suffix}`;
