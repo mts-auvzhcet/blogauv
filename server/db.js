@@ -31,6 +31,7 @@ async function initializeDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE posts ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT FALSE;
     CREATE TABLE IF NOT EXISTS post_images (
       id BIGSERIAL PRIMARY KEY,
       post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,

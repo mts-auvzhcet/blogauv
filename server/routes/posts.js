@@ -71,6 +71,7 @@ function publicPost(row) {
     markdown: row.markdown,
     createdAt: row.created_at,
     published: row.published,
+    featured: Boolean(row.featured),
   };
 }
 
@@ -178,7 +179,7 @@ router.patch('/admin/:id', requireAdmin, requireCsrf, async (req, res, next) => 
     const current = await pool.query('SELECT * FROM posts WHERE id = $1 LIMIT 1', [req.params.id]);
     if (!current.rows[0]) return res.status(404).json({ error: 'Article not found.' });
     const post = publicPost(current.rows[0]);
-    const { title, category, author, markdown, published } = req.body;
+    const { title, category, author, markdown, published, featured } = req.body;
     if (title !== undefined) {
       post.title = String(title).trim();
       if (!post.title || post.title.length > 180) return res.status(400).json({ error: 'Title must be 1 to 180 characters.' });
@@ -197,10 +198,14 @@ router.patch('/admin/:id', requireAdmin, requireCsrf, async (req, res, next) => 
       if (typeof published !== 'boolean') return res.status(400).json({ error: 'Published status must be true or false.' });
       post.published = published;
     }
+    if (featured !== undefined) {
+      if (typeof featured !== 'boolean') return res.status(400).json({ error: 'Featured status must be true or false.' });
+      post.featured = featured;
+    }
     const { rows } = await pool.query(
       `UPDATE posts SET title = $1, category = $2, author = $3, excerpt = $4, markdown = $5,
-       published = $6, updated_at = NOW() WHERE id = $7 RETURNING *`,
-      [post.title, post.category, post.author, post.excerpt, post.markdown, post.published, req.params.id],
+       published = $6, featured = $7, updated_at = NOW() WHERE id = $8 RETURNING *`,
+      [post.title, post.category, post.author, post.excerpt, post.markdown, post.published, post.featured, req.params.id],
     );
     res.json(publicPost(rows[0]));
   } catch (error) { next(error); }
