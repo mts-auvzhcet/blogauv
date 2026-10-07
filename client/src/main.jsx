@@ -179,9 +179,7 @@ function Home() {
   const [posts, setPosts] = useState([]);
   const [status, setStatus] = useState('loading');
   const [apiError, setApiError] = useState('');
-  const [packetPhase, setPacketPhase] = useState(0);
   const [seasonPhase, setSeasonPhase] = useState(0);
-  const packetPhaseRef = React.useRef(0);
   const seasonPhaseRef = React.useRef(0);
   useEffect(() => {
     const beganAt = performance.now();
@@ -198,9 +196,7 @@ function Home() {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const heroProgress = progressFor(document.querySelector('[data-stage="hero"]'));
-        const manifestoProgress = progressFor(document.querySelector('[data-stage="manifesto"]'));
         const railProgress = progressFor(document.querySelector('[data-stage="rail"]'));
-        const packetProgress = progressFor(document.querySelector('[data-stage="packet"]'));
         const seasonProgress = progressFor(document.querySelector('[data-stage="season"]'));
         const posterTitle = document.querySelector('.poster-title');
         const posterKicker = document.querySelector('.poster-kicker');
@@ -221,21 +217,10 @@ function Home() {
         root.style.setProperty('--hero-type-scale', String(1 - 0.26 * heroProgress));
         root.style.setProperty('--hero-type-alpha', String(1 - heroProgress));
         root.style.setProperty('--hero-meta-alpha', String(1 - heroProgress));
-        root.style.setProperty('--manifesto-wipe', `${manifestoProgress * 100}%`);
-        root.style.setProperty('--manifesto-scale', String(1 + 0.05 * manifestoProgress));
         const track = document.querySelector('.rail-track');
         const overflow = track ? Math.max(0, track.scrollWidth - window.innerWidth) : 0;
         root.style.setProperty('--rail-x', `${-railProgress * overflow}px`);
         root.style.setProperty('--rail-meter', `${railProgress * 100}%`);
-        const packetReveal = Math.min(1, packetProgress / 0.2);
-        root.style.setProperty('--packet-alpha', String(packetReveal));
-        root.style.setProperty('--packet-enter', `${38 * (1 - packetReveal)}px`);
-        root.style.setProperty('--packet-scale', String(0.78 + 0.22 * packetReveal));
-        root.style.setProperty('--packet-cut', String(Math.max(0, Math.min(1, (packetProgress - 0.82) / 0.18))));
-        root.style.setProperty('--packet-meter', `${packetProgress * 100}%`);
-        root.style.setProperty('--packet-copy-x', `${-24 * packetProgress}px`);
-        const nextPacketPhase = Math.min(3, Math.floor(packetProgress * 4));
-        if (packetPhaseRef.current !== nextPacketPhase) { packetPhaseRef.current = nextPacketPhase; setPacketPhase(nextPacketPhase); }
         root.style.setProperty('--season-y', `${-4 + 8 * seasonProgress}%`);
         root.style.setProperty('--season-scale', String(1.1 - 0.045 * seasonProgress));
         const nextSeasonPhase = Math.min(2, Math.floor(seasonProgress * 3));
@@ -259,20 +244,12 @@ function Home() {
   if (status === 'loading') return <LoadingState message="Loading the field notes" />;
 
   const highlightedPosts = posts.filter((post) => post.published && post.featured).slice(0, 6);
-  const featured = highlightedPosts[0] || null;
-  const statusLines = ['PDF EXTRACTED / FIELD COPY RECEIVED', 'TEXT LAYER VERIFIED / PROOF IN REVIEW', 'MARKDOWN PROOF READY / COPY CHECKED', 'READY FOR THE PUBLIC ARCHIVE'];
-  const packetDate = new Date().toLocaleDateString('en', { year: 'numeric', month: 'short', day: '2-digit' }).toUpperCase();
-
   return <><PublicHeader /><main className="choreo-home">
-    <section className="pin-stage hero-stage" data-stage="hero"><div className="pin-inner hero-pin"><PlateCanvas variant="soil" className="hero-soil" animate /><div className="poster-lockup"><WordLine as="p" className="poster-kicker">Ideas for the curious engineer.</WordLine><WordLine as="h1" className="poster-title">AUV BLOG</WordLine><p className="poster-lede" data-rev>The systems we build shape the world we live in. Explore the thinking behind them — one good read at a time.</p></div><div className="poster-meta"><span data-rev>COMPUTER SCIENCE</span><span data-rev>ELECTRONICS</span><span data-rev>MECHANICAL</span><span className="poster-scroll" data-rev>SCROLL TO EXPLORE&nbsp; ↓</span></div><div className="poster-counter">01 <i>/ 05</i></div></div></section>
-
-    <section className="pin-stage manifesto-stage" data-stage="manifesto"><div className="pin-inner manifesto-pin"><p className="eyebrow" data-rev>OUR POINT OF VIEW / 01</p><div className="manifesto-frame"><p className="manifesto-base" aria-hidden="true"><WordLine>The systems we build shape the world we live in.</WordLine></p><p className="manifesto-fill" aria-hidden="true"><WordLine>The systems we build shape the world we live in.</WordLine></p></div><p className="manifesto-foot" data-rev><span>SCIENCE, SYSTEMS &amp; THE SPACE BETWEEN</span><span>SCROLL TO REVEAL&nbsp; ↓</span></p></div></section>
+    <section className="pin-stage hero-stage" data-stage="hero"><div className="pin-inner hero-pin"><PlateCanvas variant="soil" className="hero-soil" animate /><div className="poster-lockup"><WordLine as="p" className="poster-kicker">Ideas for the curious engineer.</WordLine><WordLine as="h1" className="poster-title">AUV BLOG</WordLine><p className="poster-lede" data-rev>The systems we build shape the world we live in. Explore the thinking behind them — one good read at a time.</p></div><div className="poster-meta"><span data-rev>COMPUTER SCIENCE</span><span data-rev>ELECTRONICS</span><span data-rev>MECHANICAL</span><span className="poster-scroll" data-rev>SCROLL TO EXPLORE&nbsp; ↓</span></div><div className="poster-counter">01 <i>/ 03</i></div></div></section>
 
     <section className="pin-stage rail-stage" data-stage="rail" id="latest"><div className="pin-inner rail-pin"><div className="rail-heading"><div><p className="eyebrow" data-rev>THE READING ROOM / 02</p><h2><WordLine>Selected field notes.</WordLine></h2></div><p className="rail-hint" data-rev>CURATED BY THE CLUB EDITOR&nbsp; ↘</p></div>{highlightedPosts.length ? <div className="rail-window"><div className="rail-track">{highlightedPosts.map((post, index) => <Link className="rail-card" key={post.id} to={`/${post.slug}/`} data-rev><CardPlate category={post.category} index={index + 1} /><div className="rail-card-meta" data-rev><span>{post.category}</span><span>READ / {Math.max(1, Math.ceil((post.markdown || '').split(/\s+/).length / 220))} MIN</span></div><h3 data-rev>{post.title}</h3><p data-rev>{post.excerpt}</p><span className="rail-card-link" data-rev>OPEN ARTICLE <b>↗</b></span></Link>)}</div></div> : <div className="reading-room-empty" data-rev><span>THE EDITOR’S SELECTION</span><p>Stories chosen for the Reading Room will appear here.</p></div>}<div className="rail-meter"><span /></div><div className="rail-footer"><span>{String(highlightedPosts.length).padStart(2, '0')} SELECTED / UP TO 06</span><span>COMPUTER SCIENCE · ELECTRONICS · MECHANICAL</span></div></div></section>
 
-    <section className="pin-stage packet-stage" data-stage="packet"><div className="pin-inner packet-pin"><div className="packet-copy"><p className="eyebrow" data-rev>THE PRINTED PROOF / 03</p><h2><WordLine>From source to story.</WordLine></h2><p className="packet-description" data-rev>Every good article starts with a question. We read closely, make the complicated clear, and leave a useful trail of notes for the next curious mind.</p><div className="packet-cues">{['SOURCE RECEIVED', 'TEXT VERIFIED', 'COPY REVIEWED', 'PUBLISHED'].map((cue, index) => <div className={`packet-cue ${packetPhase >= index ? 'cue-active' : ''}`} key={cue} data-rev><i>{String(index + 1).padStart(2, '0')}</i><span>{cue}</span><b>{packetPhase >= index ? '✓' : '·'}</b></div>)}</div><p className="packet-live" aria-live="polite">{statusLines[packetPhase]}</p></div><div className="packet-sheet-wrap"><article className="packet-sheet"><header className="sheet-head"><span>MTS AUV-ZHCET <i>·</i> EDITION 01</span><span>CLUB FIELD NOTE</span></header><div className="sheet-title"><p>FIELD NOTE / {String(posts.length || 1).padStart(3, '0')}</p><h3>{featured?.title || 'Curiosity is an engineering tool.'}</h3><span>{featured?.category || 'THREE WAYS TO LOOK CLOSER'}</span></div><div className="sheet-plate"><PlateCanvas variant={featured?.category === 'Electronics' ? 'electronics' : featured?.category === 'Mechanical' ? 'mechanical' : 'computer'} /><span>GENERATED FIELD PLATE / AUV</span></div><div className="sheet-print-meter" data-rev><span /></div><div className="sheet-records" data-rev><div><span>LOT / ISSUE</span><b>AUV–{String(posts.length || 1).padStart(4, '0')}</b></div><div><span>TEXT REVIEW</span><b>{packetPhase < 1 ? 'PENDING' : 'VERIFIED'}</b></div><div><span>PRINT DATE</span><b>{packetPhase < 2 ? 'IN PROGRESS' : packetDate}</b></div></div><div className="sheet-perforation"><span>✳</span></div></article><div className="packet-side-note">PROOF COPY <span>·</span> {String(packetPhase + 1).padStart(2, '0')} / 04</div></div><div className="packet-index">03 <i>/ 05</i></div></div></section>
-
-    <section className="pin-stage season-stage" data-stage="season" id="fields"><div className="pin-inner season-pin"><PlateCanvas variant="contour" className="season-contours" animate /><div className="season-top"><p className="eyebrow" data-rev>THREE WAYS TO LOOK CLOSER / 04</p><span data-rev>AN OPEN FIELD OF IDEAS</span></div><div className="season-content"><h2><WordLine>Follow your curiosity.</WordLine></h2><div className="season-chapters">{CATEGORIES.map((category, index) => <Link className={`season-chapter ${seasonPhase === index ? 'chapter-active' : ''}`} data-rev to={`/category/${categorySlug(category)}`} key={category} aria-current={seasonPhase === index ? 'step' : undefined}><span className="chapter-number" data-rev>0{index + 1} / FIELD</span><h3 data-rev>{category}</h3><p data-rev>{CATEGORY_COPY[category]}</p><span className="chapter-arrow" data-rev>OPEN SECTION&nbsp; ↗</span></Link>)}</div></div><div className="season-bottom"><span>COMPUTER SCIENCE / ELECTRONICS / MECHANICAL</span><span>CHOOSE A FIELD TO EXPLORE&nbsp; ↓</span></div><div className="season-index">04 <i>/ 05</i></div></div></section>
+    <section className="pin-stage season-stage" data-stage="season" id="fields"><div className="pin-inner season-pin"><PlateCanvas variant="contour" className="season-contours" animate /><div className="season-top"><p className="eyebrow" data-rev>THREE WAYS TO LOOK CLOSER / 03</p><span data-rev>AN OPEN FIELD OF IDEAS</span></div><div className="season-content"><h2><WordLine>Follow your curiosity.</WordLine></h2><div className="season-chapters">{CATEGORIES.map((category, index) => <Link className={`season-chapter ${seasonPhase === index ? 'chapter-active' : ''}`} data-rev to={`/category/${categorySlug(category)}`} key={category} aria-current={seasonPhase === index ? 'step' : undefined}><span className="chapter-number" data-rev>0{index + 1} / FIELD</span><h3 data-rev>{category}</h3><p data-rev>{CATEGORY_COPY[category]}</p><span className="chapter-arrow" data-rev>OPEN SECTION&nbsp; ↗</span></Link>)}</div></div><div className="season-bottom"><span>COMPUTER SCIENCE / ELECTRONICS / MECHANICAL</span><span>CHOOSE A FIELD TO EXPLORE&nbsp; ↓</span></div><div className="season-index">03 <i>/ 03</i></div></div></section>
 
     {status === 'error' && <section className="archive-band section-wrap"><p className="empty-category">Articles could not be loaded: {apiError}</p></section>}
 
